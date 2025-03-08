@@ -16,9 +16,11 @@ Proyek ini terdiri dari dua komponen utama:
 
 │ └── products_dataset.csv
 
-├── Copy_of_Proyek_Analisis_Data.ipynb # Notebook analisis
+├── Copy_of_Proyek_Analisis_Data.ipynb 
 
-├── dashboard.py # Aplikasi Streamlit
+├── dashboard.py 
+
+├── url.txt
 
 └── README.md
 
