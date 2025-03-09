@@ -7,8 +7,8 @@ Proyek ini terdiri dari dua komponen utama:
 ---
 
 ## 🗂 Struktur Repositori
-.
-├── data/
+submission
+├───dashboard
 
 │ ├── customers_dataset.csv
 
@@ -16,11 +16,23 @@ Proyek ini terdiri dari dua komponen utama:
 
 │ └── products_dataset.csv
 
-├── Copy_of_Proyek_Analisis_Data.ipynb # Notebook analisis
+| └───dashboard.py
 
-├── dashboard.py # Aplikasi Streamlit
+├───data
 
-└── README.md
+│ ├── customers_dataset.csv
+
+│ ├── geolocation_dataset.csv
+
+│ └── products_dataset.csv
+
+├── Copy_of_Proyek_Analisis_Data.ipynb
+
+├───README.md
+
+└───requirements.txt
+
+└───url.txt
 
 ---
 
