@@ -13,36 +13,30 @@ def load_data():
     customers = pd.read_csv("data/customers_dataset.csv")
     geolocation = pd.read_csv("data/geolocation_dataset.csv")
     products = pd.read_csv("data/products_dataset.csv")
-    orders = pd.read_csv("data/orders_dataset.csv")
-    order_items = pd.read_csv("data/order_items_dataset.csv")
-    return customers, geolocation, products, orders, order_items
+    return customers, geolocation, products
 
-# Memuat data dan merge dataset
-customers, geolocation, products, orders, order_items = load_data()
-merged_data = order_items.merge(orders, on='order_id') \
-                         .merge(customers, on='customer_id') \
-                         .merge(products, on='product_id')
+# Memuat data
+customers, geolocation, products = load_data()
 
 # Sidebar untuk kontrol
 st.sidebar.header("Pengaturan Analisis")
 analysis_type = st.sidebar.selectbox(
     "Pilih Jenis Analisis",
-    [
-        "Distribusi Pelanggan", 
-        "Karakteristik Produk",
-        "Pengaruh Lokasi pada Preferensi",
-        "Pengaruh Berat & Dimensi"
-    ]
+    ["Distribusi Pelanggan", "Karakteristik Produk"]
 )
 
-# Menampilkan pertanyaan bisnis di sidebar
+# Menambahkan Pertanyaan Bisnis di sidebar
 st.sidebar.markdown("---")
 st.sidebar.subheader("Pertanyaan Bisnis")
-st.sidebar.write("1. Bagaimana pengaruh lokasi geografis terhadap preferensi produk?")
-st.sidebar.write("2. Bagaimana hubungan karakteristik fisik produk dengan pola pembelian?")
+st.sidebar.write("1. Bagaimana pengaruh lokasi pelanggan terhadap preferensi belanja mereka?")
+st.sidebar.write("2. Bagaimana distribusi berat dan dimensi mempengaruhi preferensi pelanggan?")
+
 st.sidebar.markdown("---")
 st.sidebar.info(
-    "Dataset yang digunakan termasuk data transaksi, produk, dan lokasi pelanggan"
+    "Dashboard ini menampilkan analisis data e-commerce Brazil mencakup:\n"
+    "- Distribusi geografis pelanggan\n"
+    "- Karakteristik produk\n"
+    "- Data mentah terkait"
 )
 
 # Tab untuk analisis
@@ -67,7 +61,7 @@ with tab1:
             'geolocation_lat': 'latitude', 
             'geolocation_lng': 'longitude'
         }))
-        
+
     elif analysis_type == "Karakteristik Produk":
         st.header("Analisis Karakteristik Produk")
         
@@ -91,56 +85,6 @@ with tab1:
         plt.tight_layout()
         st.pyplot(fig)
 
-    elif analysis_type == "Pengaruh Lokasi pada Preferensi":
-        st.header("Analisis Pengaruh Lokasi pada Preferensi Belanja")
-        
-        # Analisis preferensi kategori produk berdasarkan kota
-        st.subheader("Preferensi Kategori Produk per Kota")
-        city_preference = merged_data.groupby(['customer_city','product_category_name']).size() \
-                                     .nlargest(10).reset_index(name='count')
-        
-        plt.figure(figsize=(12,6))
-        sns.barplot(x='count', y='customer_city', hue='product_category_name', 
-                    data=city_preference, dodge=False)
-        plt.title('10 Kategori Produk Paling Populer per Kota')
-        st.pyplot(plt)
-        
-        # Analisis pola pembelian berdasarkan wilayah geografis
-        st.subheader("Pola Pembelian Berdasarkan Koordinat Geografis")
-        geo_data = merged_data[['geolocation_lat','geolocation_lng','payment_value']].dropna()
-        plt.figure(figsize=(10,6))
-        sns.scatterplot(x='geolocation_lng', y='geolocation_lat', size='payment_value', 
-                        data=geo_data.sample(1000), alpha=0.5)
-        plt.title('Distribusi Nilai Pembelian Berdasarkan Lokasi')
-        st.pyplot(plt)
-
-    elif analysis_type == "Pengaruh Berat & Dimensi":
-        st.header("Analisis Pengaruh Berat & Dimensi Produk")
-        
-        # Hubungan antara berat produk dengan frekuensi pembelian
-        st.subheader("Korelasi Berat Produk vs Frekuensi Pembelian")
-        weight_freq = merged_data.groupby('product_weight_g').size().reset_index(name='purchase_count')
-        
-        plt.figure(figsize=(10,6))
-        sns.regplot(x='product_weight_g', y='purchase_count', data=weight_freq)
-        plt.title('Hubungan Berat Produk dan Frekuensi Pembelian')
-        st.pyplot(plt)
-        
-        # Analisis 3D dimensi produk
-        st.subheader("Distribusi 3D Dimensi Produk Terpopuler")
-        dimensions = merged_data[['product_length_cm','product_height_cm','product_width_cm']]
-        dimensions = dimensions[(dimensions < dimensions.quantile(0.95)).all(axis=1)]
-        
-        fig = plt.figure(figsize=(10,6))
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(dimensions['product_length_cm'], 
-                   dimensions['product_height_cm'], 
-                   dimensions['product_width_cm'])
-        ax.set_xlabel('Panjang (cm)')
-        ax.set_ylabel('Tinggi (cm)')
-        ax.set_zlabel('Lebar (cm)')
-        st.pyplot(fig)
-
 with tab2:
     if analysis_type == "Distribusi Pelanggan":
         st.subheader("Data Pelanggan")
@@ -152,12 +96,3 @@ with tab2:
     elif analysis_type == "Karakteristik Produk":
         st.subheader("Data Produk")
         st.write(products.head())
-    
-    elif analysis_type == "Pengaruh Lokasi pada Preferensi":
-        st.subheader("Data Transaksi Terkait Lokasi")
-        st.write(merged_data[['customer_city','product_category_name','payment_value']].head())
-    
-    elif analysis_type == "Pengaruh Berat & Dimensi":
-        st.subheader("Data Produk dengan Dimensi")
-        st.write(products[['product_weight_g','product_length_cm',
-                           'product_height_cm','product_width_cm']].head())
