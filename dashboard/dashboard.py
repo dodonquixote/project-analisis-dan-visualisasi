@@ -25,6 +25,20 @@ analysis_type = st.sidebar.selectbox(
     ["Distribusi Pelanggan", "Karakteristik Produk"]
 )
 
+# Menambahkan Pertanyaan Bisnis di sidebar
+st.sidebar.markdown("---")
+st.sidebar.subheader("Pertanyaan Bisnis")
+st.sidebar.write("1. Bagaimana pengaruh lokasi pelanggan terhadap preferensi belanja mereka?")
+st.sidebar.write("2. Bagaimana distribusi berat dan dimensi mempengaruhi preferensi pelanggan?")
+
+st.sidebar.markdown("---")
+st.sidebar.info(
+    "Dashboard ini menampilkan analisis data e-commerce Brazil mencakup:\n"
+    "- Distribusi geografis pelanggan\n"
+    "- Karakteristik produk\n"
+    "- Data mentah terkait"
+)
+
 # Tab untuk analisis
 tab1, tab2 = st.tabs(["📊 Visualisasi", "📈 Data Mentah"])
 
@@ -82,12 +96,3 @@ with tab2:
     elif analysis_type == "Karakteristik Produk":
         st.subheader("Data Produk")
         st.write(products.head())
-
-# Menambahkan penjelasan
-st.sidebar.markdown("---")
-st.sidebar.info(
-    "Dashboard ini menampilkan analisis data e-commerce Brazil mencakup:\n"
-    "- Distribusi geografis pelanggan\n"
-    "- Karakteristik produk\n"
-    "- Data mentah terkait"
-)
