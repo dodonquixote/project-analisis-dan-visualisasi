@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import plotly.express as px  # Tambahkan library visualisasi interaktif
+import plotly.express as px  # Library visualisasi interaktif
 
 # Set judul halaman
 st.set_page_config(page_title="E-commerce Analysis Dashboard", layout="wide")
@@ -81,12 +81,12 @@ if analysis_type == "Distribusi Pelanggan":
     
     # 4. Interactive Map dengan Layer Control
     st.subheader("Peta Interaktif Pelanggan")
+    # Gunakan cluster_size untuk menentukan radius pada heatmap (misal: cluster_size/100)
     map_data = geolocation.sample(1000).rename(columns={
         'geolocation_lat': 'lat', 
         'geolocation_lng': 'lon'
     })
     
-    # Layer kontrol interaktif
     layer_choice = st.radio(
         "Tipe Peta",
         ["Heatmap", "Point Map"],
@@ -94,12 +94,23 @@ if analysis_type == "Distribusi Pelanggan":
     )
     
     if layer_choice == "Heatmap":
-        fig = px.density_mapbox(map_data, lat='lat', lon='lon', radius=10,
-                                zoom=3, height=500)
+        fig = px.density_mapbox(
+            map_data,
+            lat='lat',
+            lon='lon',
+            radius=cluster_size / 100,  # radius disesuaikan dari slider
+            zoom=3,
+            height=500
+        )
     else:
-        fig = px.scatter_mapbox(map_data, lat='lat', lon='lon', 
-                                hover_name='geolocation_city',
-                                zoom=3, height=500)
+        fig = px.scatter_mapbox(
+            map_data,
+            lat='lat',
+            lon='lon', 
+            hover_name='geolocation_city',
+            zoom=3,
+            height=500
+        )
     
     fig.update_layout(mapbox_style="open-street-map")
     st.plotly_chart(fig, use_container_width=True)
@@ -117,72 +128,77 @@ if analysis_type == "Distribusi Pelanggan":
         
         with tab1:
             city_dist = state_data['customer_city'].value_counts().nlargest(10)
-            fig = px.bar(city_dist, orientation='h', 
-                         labels={'value':'Jumlah Pelanggan','index':'Kota'},
-                         title=f'Top 10 Kota di {selected_state}')
+            fig = px.bar(
+                city_dist,
+                orientation='h', 
+                labels={'value': 'Jumlah Pelanggan', 'index': 'Kota'},
+                title=f'Top 10 Kota di {selected_state}'
+            )
             st.plotly_chart(fig, use_container_width=True)
             
         with tab2:
-            # Asumsi ada kolom tanggal (contoh implementasi)
-            try:
-                fig = px.line(state_data.set_index('order_purchase_timestamp').resample('M').size(),
-                              labels={'value':'Jumlah Order'},
-                              title='Trend Bulanan Order')
+            # Asumsi ada kolom tanggal, jika tidak ada tampilkan peringatan
+            if 'order_purchase_timestamp' in state_data.columns:
+                # Ubah kolom tanggal menjadi datetime dan set sebagai index
+                state_data['order_purchase_timestamp'] = pd.to_datetime(state_data['order_purchase_timestamp'])
+                ts_data = state_data.set_index('order_purchase_timestamp').resample('M').size()
+                fig = px.line(ts_data, labels={'value': 'Jumlah Order'}, title='Trend Bulanan Order')
                 st.plotly_chart(fig, use_container_width=True)
-            except Exception as e:
+            else:
                 st.warning("Data tanggal tidak tersedia")
                 
 elif analysis_type == "Karakteristik Produk":
     st.header("Analisis Karakteristik Produk")
     
-    # 1. Interactive Correlation Explorer
-    st.subheader("Analisis Korelasi Interaktif")
-    corr_vars = st.multiselect(
-        "Pilih Variabel untuk Korelasi",
-        options=['product_weight_g', 'product_length_cm',
-                 'product_height_cm', 'product_width_cm'],
-        default=['product_weight_g', 'product_length_cm']
-    )
-    
-    if len(corr_vars) > 1:
-        fig = px.scatter_matrix(
+    # Gunakan nilai metric_choice yang sudah didefinisikan di sidebar
+    if metric_choice == "Berat":
+        st.subheader("Distribusi Berat Produk")
+        bin_size = st.slider("Jumlah Bins untuk Berat", 5, 100, 30)
+        fig = px.histogram(
             products,
-            dimensions=corr_vars,
-            color_discrete_sequence=['#2ecc71']
+            x='product_weight_g',
+            nbins=bin_size,
+            title="Distribusi Berat Produk",
+            color_discrete_sequence=['#3498db']
+        )
+        if show_outliers:
+            fig.update_layout(xaxis_range=[0, products['product_weight_g'].quantile(0.95)])
+        st.plotly_chart(fig, use_container_width=True)
+    
+    elif metric_choice == "Dimensi":
+        st.subheader("Visualisasi 3D Dimensi Produk")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            x_axis = st.selectbox("X Axis", options=['product_length_cm', 'product_height_cm', 'product_width_cm'], key="x_axis")
+        with col2:
+            y_axis = st.selectbox("Y Axis", options=['product_length_cm', 'product_height_cm', 'product_width_cm'], key="y_axis")
+        with col3:
+            z_axis = st.selectbox("Z Axis", options=['product_length_cm', 'product_height_cm', 'product_width_cm'], key="z_axis")
+        fig = px.scatter_3d(
+            products,
+            x=x_axis,
+            y=y_axis,
+            z=z_axis,
+            color='product_weight_g',
+            hover_name='product_category_name',
+            height=800
         )
         st.plotly_chart(fig, use_container_width=True)
     
-    # 2. Dynamic Histogram
-    st.subheader("Distribusi Dinamis")
-    dist_var = st.selectbox(
-        "Pilih Variabel untuk Distribusi",
-        options=['product_weight_g', 'product_length_cm',
-                 'product_height_cm', 'product_width_cm']
-    )
-    
-    bin_size = st.slider("Jumlah Bins", 5, 100, 30)
-    fig = px.histogram(products, x=dist_var, nbins=bin_size,
-                       title=f'Distribusi {dist_var}',
-                       color_discrete_sequence=['#3498db'])
-    if show_outliers:
-        fig.update_layout(xaxis_range=[0, products[dist_var].quantile(0.95)])
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # 3. 3D Scatter Plot Interaktif
-    st.subheader("Visualisasi 3D Dimensi Produk")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        x_axis = st.selectbox("X Axis", options=['product_length_cm', 'product_height_cm', 'product_width_cm'])
-    with col2:
-        y_axis = st.selectbox("Y Axis", options=['product_height_cm', 'product_width_cm', 'product_length_cm'])
-    with col3:
-        z_axis = st.selectbox("Z Axis", options=['product_width_cm', 'product_length_cm', 'product_height_cm'])
-    
-    fig = px.scatter_3d(products, x=x_axis, y=y_axis, z=z_axis,
-                          color='product_weight_g',
-                          hover_name='product_category_name',
-                          height=800)
-    st.plotly_chart(fig, use_container_width=True)
+    elif metric_choice == "Korelasi":
+        st.subheader("Analisis Korelasi Interaktif")
+        corr_vars = st.multiselect(
+            "Pilih Variabel untuk Korelasi",
+            options=['product_weight_g', 'product_length_cm', 'product_height_cm', 'product_width_cm'],
+            default=['product_weight_g', 'product_length_cm']
+        )
+        if len(corr_vars) > 1:
+            fig = px.scatter_matrix(
+                products,
+                dimensions=corr_vars,
+                color_discrete_sequence=['#2ecc71']
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
 # Tampilkan data mentah dengan filter (hanya untuk Distribusi Pelanggan)
 if analysis_type == "Distribusi Pelanggan" and show_raw_data:
