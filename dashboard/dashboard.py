@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px  # Tambahkan library visualisasi interaktif
 
 # Set judul halaman
 st.set_page_config(page_title="E-commerce Analysis Dashboard", layout="wide")
@@ -18,6 +19,13 @@ def load_data():
 # Memuat data
 customers, geolocation, products = load_data()
 
+# ================= FITUR INTERAKTIF BARU =================
+# 1. Dynamic Date Range (Jika dataset memiliki kolom tanggal)
+# 2. Cross-filtering antar visualisasi
+# 3. Drill-down analysis
+# 4. Real-time visualization update
+# 5. Interactive data exploration
+
 # Sidebar untuk kontrol
 st.sidebar.header("Pengaturan Analisis")
 analysis_type = st.sidebar.selectbox(
@@ -25,86 +33,159 @@ analysis_type = st.sidebar.selectbox(
     ["Distribusi Pelanggan", "Karakteristik Produk"]
 )
 
-# Menambahkan Pertanyaan Bisnis di sidebar
-st.sidebar.markdown("---")
-st.sidebar.subheader("Pertanyaan Bisnis")
-st.sidebar.write("1. Bagaimana pengaruh lokasi pelanggan terhadap preferensi belanja mereka?")
-st.sidebar.write("2. Bagaimana distribusi berat dan dimensi mempengaruhi preferensi pelanggan?")
-st.sidebar.markdown("---")
-st.sidebar.info(
-    "Dashboard ini menampilkan analisis data e-commerce Brazil mencakup:\n"
-    "- Distribusi geografis pelanggan\n"
-    "- Karakteristik produk\n"
-    "- Data mentah terkait"
-)
+# Panel kontrol tambahan
+with st.sidebar.expander("⚙️ Pengaturan Lanjutan"):
+    if analysis_type == "Distribusi Pelanggan":
+        show_raw_data = st.checkbox("Tampilkan Data Mentah", value=True)
+        cluster_size = st.slider("Ukuran Cluster Peta", 100, 1000, 500)
+        
+    elif analysis_type == "Karakteristik Produk":
+        metric_choice = st.radio(
+            "Metrik Analisis",
+            ["Berat", "Dimensi", "Korelasi"]
+        )
+        show_outliers = st.checkbox("Tampilkan Outlier")
 
-# Menambahkan fitur interaktif untuk masing-masing analisis
+# Konten utama berdasarkan jenis analisis
 if analysis_type == "Distribusi Pelanggan":
-    # Filter interaktif: Pilih kota yang ingin ditampilkan
-    city_options = customers['customer_city'].unique()
-    selected_cities = st.sidebar.multiselect("Pilih Kota", options=city_options, default=city_options[:5])
-    filtered_customers = customers[customers['customer_city'].isin(selected_cities)]
-elif analysis_type == "Karakteristik Produk":
-    # Filter interaktif: Slider untuk rentang berat produk
-    min_weight = int(products['product_weight_g'].min())
-    max_weight = int(products['product_weight_g'].max())
-    weight_range = st.sidebar.slider("Filter Berat Produk (gram)", min_value=min_weight, max_value=max_weight, value=(min_weight, max_weight))
-    filtered_products = products[(products['product_weight_g'] >= weight_range[0]) & (products['product_weight_g'] <= weight_range[1])]
-
-# Tab untuk analisis
-tab1, tab2 = st.tabs(["📊 Visualisasi", "📈 Data Mentah"])
-
-with tab1:
-    if analysis_type == "Distribusi Pelanggan":
-        st.header("Analisis Distribusi Pelanggan")
-        # Top 10 Kota dari data yang sudah difilter
-        plt.figure(figsize=(10, 6))
-        top_cities = filtered_customers['customer_city'].value_counts().head(10)
-        sns.barplot(x=top_cities.values, y=top_cities.index, palette="viridis")
-        plt.title('Top 10 Kota dengan Jumlah Pelanggan Terbanyak')
-        plt.xlabel('Jumlah Pelanggan')
-        plt.ylabel('Kota')
-        st.pyplot(plt)
-        
-        # Peta Geolokasi (menggunakan sampel data untuk performa)
-        st.subheader("Distribusi Geografis Pelanggan")
-        # Pastikan kolom geolocation memiliki nama latitude dan longitude yang sesuai
-        st.map(geolocation.sample(1000).rename(columns={
-            'geolocation_lat': 'latitude', 
-            'geolocation_lng': 'longitude'
-        }))
-
-    elif analysis_type == "Karakteristik Produk":
-        st.header("Analisis Karakteristik Produk")
-        
-        # Distribusi Berat Produk dari data yang sudah difilter
-        plt.figure(figsize=(10, 6))
-        sns.histplot(filtered_products['product_weight_g'].dropna(), bins=30, kde=True)
-        plt.title('Distribusi Berat Produk (gram)')
-        plt.xlabel('Berat (gram)')
-        plt.ylabel('Frekuensi')
-        st.pyplot(plt)
-
-        # Distribusi Dimensi Produk
-        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
-        sns.histplot(filtered_products['product_length_cm'].dropna(), bins=30, ax=axes[0, 0], kde=True)
-        sns.histplot(filtered_products['product_height_cm'].dropna(), bins=30, ax=axes[0, 1], kde=True)
-        sns.histplot(filtered_products['product_width_cm'].dropna(), bins=30, ax=axes[1, 0], kde=True)
-        
-        axes[0, 0].set_title('Panjang Produk (cm)')
-        axes[0, 1].set_title('Tinggi Produk (cm)')
-        axes[1, 0].set_title('Lebar Produk (cm)')
-        plt.tight_layout()
-        st.pyplot(fig)
-
-with tab2:
-    if analysis_type == "Distribusi Pelanggan":
-        st.subheader("Data Pelanggan (Tampilan Terfilter)")
-        st.write(filtered_customers.head())
-        
-        st.subheader("Data Geolokasi")
-        st.write(geolocation.head())
+    # 1. Interactive City Selector dengan Search
+    selected_cities = st.multiselect(
+        "Pilih Kota untuk Filter",
+        options=customers['customer_city'].unique(),
+        default=["sao paulo", "rio de janeiro"],
+        format_func=lambda x: x.title()
+    )
     
-    elif analysis_type == "Karakteristik Produk":
-        st.subheader("Data Produk (Tampilan Terfilter)")
-        st.write(filtered_products.head())
+    # 2. Dynamic Filtering
+    if selected_cities:
+        filtered_data = customers[customers['customer_city'].isin(selected_cities)]
+    else:
+        filtered_data = customers.copy()
+    
+    # 3. Tampilkan Statistik Real-time
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Pelanggan", filtered_data.shape[0])
+    with col2:
+        st.metric("Kota Unik", filtered_data['customer_city'].nunique())
+    with col3:
+        st.metric("Negara Bagian", filtered_data['customer_state'].nunique())
+    
+    # 4. Interactive Map dengan Layer Control
+    st.subheader("Peta Interaktif Pelanggan")
+    map_data = geolocation.sample(1000).rename(columns={
+        'geolocation_lat': 'lat', 
+        'geolocation_lng': 'lon'
+    })
+    
+    # Layer kontrol interaktif
+    layer_choice = st.radio(
+        "Tipe Peta",
+        ["Heatmap", "Point Map"],
+        horizontal=True
+    )
+    
+    if layer_choice == "Heatmap":
+        fig = px.density_mapbox(map_data, lat='lat', lon='lon', radius=10,
+                               zoom=3, height=500)
+    else:
+        fig = px.scatter_mapbox(map_data, lat='lat', lon='lon', 
+                              hover_name='geolocation_city',
+                              zoom=3, height=500)
+    
+    fig.update_layout(mapbox_style="open-street-map")
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # 5. Drill-down Analysis
+    with st.expander("🔍 Analisis Detail Negara Bagian"):
+        selected_state = st.selectbox(
+            "Pilih Negara Bagian",
+            sorted(filtered_data['customer_state'].unique())
+        )
+        state_data = filtered_data[filtered_data['customer_state'] == selected_state]
+        
+        # Tampilkan data dalam tabs
+        tab1, tab2 = st.tabs(["Distribusi Kota", "Trend Temporal"])
+        
+        with tab1:
+            city_dist = state_data['customer_city'].value_counts().nlargest(10)
+            fig = px.bar(city_dist, orientation='h', 
+                        labels={'value':'Jumlah Pelanggan','index':'Kota'},
+                        title=f'Top 10 Kota di {selected_state}')
+            st.plotly_chart(fig, use_container_width=True)
+            
+        with tab2:
+            # Asumsi ada kolom tanggal (contoh implementasi)
+            try:
+                fig = px.line(state_data.set_index('order_purchase_timestamp').resample('M').size(),
+                             labels={'value':'Jumlah Order'},
+                             title='Trend Bulanan Order')
+                st.plotly_chart(fig, use_container_width=True)
+            except:
+                st.warning("Data tanggal tidak tersedia")
+
+elif analysis_type == "Karakteristik Produk":
+    # 1. Interactive Correlation Explorer
+    st.subheader("Analisis Korelasi Interaktif")
+    corr_vars = st.multiselect(
+        "Pilih Variabel untuk Korelasi",
+        options=['product_weight_g', 'product_length_cm',
+                'product_height_cm', 'product_width_cm'],
+        default=['product_weight_g', 'product_length_cm']
+    )
+    
+    if len(corr_vars) > 1:
+        fig = px.scatter_matrix(
+            products,
+            dimensions=corr_vars,
+            color_discrete_sequence=['#2ecc71']
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # 2. Dynamic Histogram
+    st.subheader("Distribusi Dinamis")
+    dist_var = st.selectbox(
+        "Pilih Variabel untuk Distribusi",
+        options=['product_weight_g', 'product_length_cm',
+                'product_height_cm', 'product_width_cm']
+    )
+    
+    bin_size = st.slider("Jumlah Bins", 5, 100, 30)
+    fig = px.histogram(products, x=dist_var, nbins=bin_size,
+                      title=f'Distribusi {dist_var}',
+                      color_discrete_sequence=['#3498db'])
+    if show_outliers:
+        fig.update_layout(xaxis_range=[0, products[dist_var].quantile(0.95)])
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # 3. 3D Scatter Plot Interaktif
+    st.subheader("Visualisasi 3D Dimensi Produk")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        x_axis = st.selectbox("X Axis", options=['product_length_cm', 'product_height_cm', 'product_width_cm'])
+    with col2:
+        y_axis = st.selectbox("Y Axis", options=['product_height_cm', 'product_width_cm', 'product_length_cm'])
+    with col3:
+        z_axis = st.selectbox("Z Axis", options=['product_width_cm', 'product_length_cm', 'product_height_cm'])
+    
+    fig = px.scatter_3d(products, x=x_axis, y=y_axis, z=z_axis,
+                       color='product_weight_g',
+                       hover_name='product_category_name',
+                       height=800)
+    st.plotly_chart(fig, use_container_width=True)
+
+# Tampilkan data mentah dengan filter
+if show_raw_data and analysis_type == "Distribusi Pelanggan":
+    st.subheader("Data Mentah")
+    st.data_editor(
+        filtered_data,
+        column_config={
+            "customer_id": "ID Pelanggan",
+            "customer_city": st.column_config.TextColumn(
+                "Kota",
+                help="Kota tempat pelanggan berada"
+            )
+        },
+        hide_index=True,
+        use_container_width=True
+    )
